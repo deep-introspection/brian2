@@ -233,11 +233,17 @@ def create_runner_codeobj(group, code, template_name,
         needed_variables = []
     # Resolve all variables (variables used in the code and variables needed by
     # the template)
-    variables = group.resolve_all(identifiers | set(needed_variables) | set(template_variables),
-                                  # template variables are not known to the user:
-                                  user_identifiers=user_identifiers,
-                                  additional_variables=additional_variables,
-                                  run_namespace=run_namespace)
+    try:
+        variables = group.resolve_all(identifiers | set(needed_variables) | set(template_variables),
+                                      # template variables are not known to the user:
+                                      user_identifiers=user_identifiers,
+                                      additional_variables=additional_variables,
+                                      run_namespace=run_namespace)
+    except KeyError as ex:
+        raise KeyError('An error occurred while resolving the names in the '
+                       'following code:\n{}code\n\n'
+                       'Do not know what "{}" refers to.'.format(user_code,
+                                                                 str(ex)))
     # We raise this error only now, because there is some non-obvious code path
     # where Jinja tries to get a Synapse's "name" attribute via syn['name'],
     # which then triggers the use of the `group_get_indices` template which does
