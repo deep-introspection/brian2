@@ -281,7 +281,8 @@ class SynapticPathway(CodeRunner, Group):
             self.abstract_code = ''
 
         self.abstract_code += self.code + '\n'
-        self.abstract_code += 'lastupdate = t\n'
+        if self.synapses.event_driven is not None:
+            self.abstract_code += 'lastupdate = t\n'
 
     @device_override('synaptic_pathway_before_run')
     def before_run(self, run_namespace):
@@ -733,13 +734,11 @@ class Synapses(Group):
                                               ('summed', 'shared',
                                                'constant over dt')])
 
-        for name in ['j', 'lastupdate', 'delay']:
+        for name in ['i', 'j', 'delay']:
             if name in model.names:
                 raise SyntaxError('"%s" is a reserved name that cannot be '
                                   'used as a variable name.' % name)
 
-        # Add the lastupdate variable, needed for event-driven updates
-        model = model + Equations('lastupdate : second')
         # Add the "multisynaptic index", if desired
         self.multisynaptic_index = multisynaptic_index
         if multisynaptic_index is not None:
@@ -750,8 +749,6 @@ class Synapses(Group):
         # Separate subexpressions depending whether they are considered to be
         # constant over a time step or not
         model, constant_over_dt = extract_constant_subexpressions(model)
-
-        self._create_variables(model, user_dtype=dtype)
 
         # Separate the equations into event-driven equations,
         # continuously updated equations and summed variable updates
@@ -783,9 +780,12 @@ class Synapses(Group):
 
         if len(event_driven):
             self.event_driven = Equations(event_driven)
+            # Add the lastupdate variable, needed for event-driven updates
+            model += Equations('lastupdate : second')
         else:
             self.event_driven = None
 
+        self._create_variables(model, user_dtype=dtype)
         self.equations = Equations(continuous)
 
         if namespace is None:
